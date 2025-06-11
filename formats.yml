@@ -1,0 +1,10 @@
+openslide:
+  key: openslide
+  name: OpenSlide
+  extensions:
+    - svs
+  mediaTypes:
+    - image/tiff
+  raster: true
+  video: false
+  supportsTransparency: false
