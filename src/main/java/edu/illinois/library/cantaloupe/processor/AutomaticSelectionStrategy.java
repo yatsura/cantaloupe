@@ -19,6 +19,9 @@ class AutomaticSelectionStrategy implements SelectionStrategy {
             Java2dProcessor.class);
     private static final List<Class<? extends Processor>> PDF_CANDIDATES = List.of(
             PdfBoxProcessor.class);
+    private static final List<Class<? extends Processor>> OPENSLIDE_CANDIDATES = List.of(
+            OpenSlideProcessor.class);
+
     private static final List<Class<? extends Processor>> VIDEO_CANDIDATES = List.of(
             FfmpegProcessor.class);
     private static final List<Class<? extends Processor>> FALLBACK_CANDIDATES = List.of(
@@ -32,6 +35,8 @@ class AutomaticSelectionStrategy implements SelectionStrategy {
             return JPG_CANDIDATES;
         } else if (Format.get("pdf").equals(sourceFormat)) {
             return PDF_CANDIDATES;
+        } else if (Format.get("openslide").equals(sourceFormat)) {
+            return OPENSLIDE_CANDIDATES;
         } else if (sourceFormat.isVideo()) {
             return VIDEO_CANDIDATES;
         }

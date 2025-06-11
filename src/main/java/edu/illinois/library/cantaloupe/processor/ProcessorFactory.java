@@ -28,7 +28,8 @@ public final class ProcessorFactory {
             OpenJpegProcessor.class,
             GrokProcessor.class,
             PdfBoxProcessor.class,
-            TurboJpegProcessor.class);
+            TurboJpegProcessor.class,
+            OpenSlideProcessor.class);
 
     private static final Set<Processor> ALL_PROCESSORS = new HashSet<>();
 
