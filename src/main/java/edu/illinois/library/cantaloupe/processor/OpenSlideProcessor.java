@@ -111,42 +111,21 @@ public class OpenSlideProcessor extends AbstractProcessor implements FileProcess
 
             // Determine the source region and best OpenSlide level
             final Crop crop = (Crop) opList.getFirst(Crop.class);
-            final Rectangle sourceRegion = (crop != null) ?
-               crop.getRectangle(fullSize, scaleConstraint) :
-               new Rectangle(0,0,fullSize.width(),fullSize.height());
+            final Rectangle sourceRegion = cropOperation(crop, fullSize, scaleConstraint);
+            // Determine the target output size after all scaling operations
             
-               // Determine the target output size after all scaling operations
-               // Which level is best for reading this?
-               final Scale scale = (Scale) opList.getFirst(Scale.class);
-               final Dimension outputSize = scale != null ?
-                 getResultingSize(scale, sourceRegion.size(), scaleConstraint) :
-                 new Dimension(sourceRegion.size());
+            final Scale scale = (Scale) opList.getFirst(Scale.class);
+            Dimension outputSize = getResultingSize(scale, sourceRegion.size(), scaleConstraint);
+            double targetDownsample = (double) sourceRegion.width() / outputSize.width();
+            int bestLevel = openslide.getBestLevelForDownsample(targetDownsample);
+            Rectangle region = scaleOperation(scale, sourceRegion, bestLevel);
 
-                double targetDownsample = (double) sourceRegion.width() / outputSize.width();
-                int bestLevel = openslide.getBestLevelForDownsample(targetDownsample);
-                double levelDownsample = openslide.getLevelDownsample(bestLevel);
+            BufferedImage bi = getRegion(region, bestLevel);
 
-                 // Calculate the region to read in the chosen level's coordinates
-                // OpenSlide's readRegion takes level-0 coordinates for x, y
-                // but level-specific width/height for the size of the region to read.
-                int readX = sourceRegion.intX();
-                int readY = sourceRegion.intY();
-                int readWidth = (int) (sourceRegion.intWidth() / levelDownsample);
-                int readHeight = (int) (sourceRegion.intHeight() / levelDownsample);
-
-                readWidth = Math.min(readWidth,(int)openslide.getLevelWidth(bestLevel) - (int)(readX / levelDownsample));
-                readHeight = Math.min(readHeight, (int)openslide.getLevelHeight(bestLevel) - (int)(readY / levelDownsample));
-
-                BufferedImage bi = openslide.readRegion(readX, readY, bestLevel, readWidth, readHeight);
-
-                if (bi == null) {
-                    throw new ProcessorException("Failed to read image region from OpenSlide");
-                }
-                final Set<ReaderHint> hints =
-                        EnumSet.of(ReaderHint.ALREADY_CROPPED);
-                bi = Java2DPostProcessor.postProcess(bi, hints, opList, imageInfo, null);
-                final Encode encode = (Encode) opList.getFirst(Encode.class);
-                ImageWriterFacade.write(bi, encode, outputStream);
+            if (bi == null) {
+                throw new ProcessorException("Failed to read image region from OpenSlide");
+            }
+            postProcessImage(bi, opList, imageInfo, outputStream);
         }       
         catch (IOException e) {
             LOGGER.error("Processing image exception", e);
@@ -154,8 +133,19 @@ public class OpenSlideProcessor extends AbstractProcessor implements FileProcess
         }
     }
 
+    private void postProcessImage(BufferedImage incomingImage, OperationList opList, Info imageInfo, OutputStream outputStream) throws IOException {
+        final Set<ReaderHint> hints =
+                EnumSet.of(ReaderHint.ALREADY_CROPPED);
+        BufferedImage bi = Java2DPostProcessor.postProcess(incomingImage, hints, opList, imageInfo, null);
+        final Encode encode = (Encode) opList.getFirst(Encode.class);
+        ImageWriterFacade.write(bi, encode, outputStream);        
+    }
     private Dimension getSize() {
         return new Dimension(openslide.getLevel0Width(), openslide.getLevel0Height());
+    }
+
+    private BufferedImage getRegion(Rectangle region, int bestLevel) throws IOException {
+        return openslide.readRegion(region.intX(), region.intY(), bestLevel, region.intWidth(), region.intHeight());
     }
 
     private Metadata readMetadata() {
@@ -210,4 +200,26 @@ public class OpenSlideProcessor extends AbstractProcessor implements FileProcess
         return constrainedSourceDimension;
     }
 
+    private Rectangle cropOperation(Crop crop, Dimension size, ScaleConstraint scaleConstraint) {
+        return (crop != null) ?
+               crop.getRectangle(size, scaleConstraint) :
+               new Rectangle(0,0,size.width(),size.height());
+    }
+
+    private Rectangle scaleOperation(Scale scale, Rectangle sourceRegion, int bestLevel) {
+        double levelDownsample = openslide.getLevelDownsample(bestLevel);
+
+        // Calculate the region to read in the chosen level's coordinates
+        // OpenSlide's readRegion takes level-0 coordinates for x, y
+        // but level-specific width/height for the size of the region to read.
+        int readX = sourceRegion.intX();
+        int readY = sourceRegion.intY();
+        int readWidth = (int) (sourceRegion.intWidth() / levelDownsample);
+        int readHeight = (int) (sourceRegion.intHeight() / levelDownsample);
+
+        readWidth = Math.min(readWidth,(int)openslide.getLevelWidth(bestLevel) - (int)(readX / levelDownsample));
+        readHeight = Math.min(readHeight, (int)openslide.getLevelHeight(bestLevel) - (int)(readY / levelDownsample));
+
+        return new Rectangle(readX, readY, readWidth, readHeight);
+    }
 }
