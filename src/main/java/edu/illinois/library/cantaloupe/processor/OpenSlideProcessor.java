@@ -155,7 +155,13 @@ public class OpenSlideProcessor extends AbstractProcessor implements FileProcess
     }
 
     private Dimension getTileSize() {
-        return new Dimension(512, 512);
+        if (openslide == null) {
+            return new Dimension(256, 256);
+        }
+        int w = Integer.parseInt(openslide.getProperties().get("openslide.level[0].tile-width"));
+        int h = Integer.parseInt(openslide.getProperties().get("openslide.level[0].tile-height"));
+
+        return new Dimension(w, h);
     }
 
      /**
