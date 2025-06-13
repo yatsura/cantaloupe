@@ -225,6 +225,9 @@
             </then>
         </if>
     </logger>
+    <logger name="edu.illinois.library.cantaloupe.processor.OpenSlideProcessor" level="DEBUG" additivity="false">
+        <appender-ref ref="AppStdoutLog" /> 
+    </logger>
 
     <root level="${log.application.level}">
         <!--

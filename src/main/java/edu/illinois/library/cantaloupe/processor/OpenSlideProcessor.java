@@ -36,7 +36,12 @@ public class OpenSlideProcessor extends AbstractProcessor implements FileProcess
     private Path sourceFile;
     @Override
     public void close() {
-        this.openslide.close();
+        if (this.openslide != null) {
+            this.openslide.close(); // Ensure it's closed when the processor is done
+            this.openslide = null;
+            this.sourceFile = null;
+            LOGGER.debug("Closed OpenSlide handle.");
+        }
     }
 
     @Override
@@ -83,14 +88,25 @@ public class OpenSlideProcessor extends AbstractProcessor implements FileProcess
     }
 
     @Override
-    public void setSourceFile(Path sourceFile) {        
+    public void setSourceFile(Path sourceFile) {
+        if (this.sourceFile != null && this.sourceFile.equals(sourceFile)) {
+            LOGGER.debug("Reusing %s", sourceFile);
+            return;
+        }
         try {
-            if (!OpenSlide.getFileFilter().accept(sourceFile.toFile())) {
-                throw new IOException("Unsupport slide format");
+            if (this.sourceFile == null || !this.sourceFile.equals(sourceFile) || this.openslide == null) {
+                if (this.openslide != null) {
+                    this.openslide.close(); // Close previous if different file
+                }
+                this.openslide = new OpenSlide(sourceFile.toFile());
+                this.sourceFile = sourceFile; // Store the current source file
+                LOGGER.debug("Opened OpenSlide handle for: {}", sourceFile);
+            } else {
+                LOGGER.debug("Reusing OpenSlide handle for: {}", sourceFile);
             }
-            this.openslide = new OpenSlide(sourceFile.toFile());
         } catch (IOException e) {
             LOGGER.error("Error opening file", e);
+            throw new IllegalArgumentException("Failed to open OpenSlide file", e);
         }
     }
     @Override
