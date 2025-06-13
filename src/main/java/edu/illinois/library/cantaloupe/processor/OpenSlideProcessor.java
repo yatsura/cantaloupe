@@ -3,6 +3,7 @@ package edu.illinois.library.cantaloupe.processor;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.io.UncheckedIOException;
 import java.nio.file.Path;
 import java.util.EnumSet;
 import java.util.HashSet;
@@ -31,16 +32,19 @@ import edu.illinois.library.cantaloupe.processor.codec.ReaderHint;
 public class OpenSlideProcessor extends AbstractProcessor implements FileProcessor {
     private static final Logger LOGGER =
             LoggerFactory.getLogger(OpenSlideProcessor.class);
+
     private static final String SOURCE_FORMAT = "openslide";
     private OpenSlide openslide;
-    private Path sourceFile;
+    private Path sourceFile;    
+
     @Override
     public void close() {
-        if (this.openslide != null) {
-            this.openslide.close(); // Ensure it's closed when the processor is done
-            this.openslide = null;
+        // Instead of closing the OpenSlide handle directly, release it to the manager.
+        // The manager will decide when to truly close it (e.g., when idle or on shutdown).
+        if (this.sourceFile != null) {
+            OpenSlideHandleManager.releaseHandle(this.sourceFile);
+            this.openslide = null; // Clear local reference
             this.sourceFile = null;
-            LOGGER.debug("Closed OpenSlide handle.");
         }
     }
 
@@ -89,24 +93,20 @@ public class OpenSlideProcessor extends AbstractProcessor implements FileProcess
 
     @Override
     public void setSourceFile(Path sourceFile) {
-        if (this.sourceFile != null && this.sourceFile.equals(sourceFile)) {
-            LOGGER.debug("Reusing %s", sourceFile);
-            return;
-        }
+      // Use the OpenSlideHandleManager to get or create the handle
         try {
-            if (this.sourceFile == null || !this.sourceFile.equals(sourceFile) || this.openslide == null) {
-                if (this.openslide != null) {
-                    this.openslide.close(); // Close previous if different file
-                }
-                this.openslide = new OpenSlide(sourceFile.toFile());
-                this.sourceFile = sourceFile; // Store the current source file
-                LOGGER.debug("Opened OpenSlide handle for: {}", sourceFile);
-            } else {
-                LOGGER.debug("Reusing OpenSlide handle for: {}", sourceFile);
+            if (!OpenSlide.getFileFilter().accept(sourceFile.toFile())) {
+                throw new IOException("Unsupported slide format: " + sourceFile);
             }
+            // Acquire the OpenSlide handle from the manager
+            this.openslide = OpenSlideHandleManager.getOrCreateHandle(sourceFile);
+            this.sourceFile = sourceFile; // Store the current source file being handled by this processor instance
         } catch (IOException e) {
-            LOGGER.error("Error opening file", e);
-            throw new IllegalArgumentException("Failed to open OpenSlide file", e);
+            LOGGER.error("Error setting source file and acquiring OpenSlide handle: {}", sourceFile, e);
+            throw new IllegalArgumentException("Failed to set OpenSlide source file", e);
+        } catch (UncheckedIOException e) {
+            LOGGER.error("UncheckedIOException Error setting source file and acquiring OpenSlide handle: {}", sourceFile, e.getCause());
+            throw new UncheckedIOException(e.getCause());
         }
     }
     @Override
