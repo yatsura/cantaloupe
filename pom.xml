@@ -3,7 +3,7 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
     <modelVersion>4.0.0</modelVersion>
     <groupId>edu.illinois.library.cantaloupe</groupId>
-    <artifactId>cantaloupe</artifactId>
+    <artifactId>Cantaloupe</artifactId>
     <packaging>jar</packaging>
     <version>5.0.7</version>
     <name>Cantaloupe</name>
@@ -11,7 +11,7 @@
     <inceptionYear>2015</inceptionYear>
 
     <properties>
-        <maven.compile.source>22</maven.compile.source>
+        <maven.compile.source>24</maven.compile.source>
         <maven.compile.target>24</maven.compile.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
