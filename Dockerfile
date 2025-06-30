@@ -32,8 +32,7 @@ RUN wget -O openslide.xz https://github.com/openslide/openslide-bin/releases/dow
 
 COPY --from=build /build/app/* /app
 
-HEALTHCHECK CMD curl -s http://localhost:8182/health | jq .color | grep -q GREEN
-
+HEALTHCHECK --interval=30s --timeout=10s --retries=3 CMD curl -f http://localhost:8182/health || exit 1
 USER cantaloupe
 
 ENTRYPOINT [ "java", "-Dcantaloupe.config=/etc/cantaloupe/cantaloupe.properties", "-Djava.library.path=/usr/local/lib", "-cp", "/app/Cantaloupe-5.0.7.jar", "edu.illinois.library.cantaloupe.StandaloneEntry" ]
